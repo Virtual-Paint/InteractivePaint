@@ -1,6 +1,6 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile
+from fastapi.responses import Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
 
 from WebSocket.connection_manager import ConnectionManager
 
@@ -24,6 +24,15 @@ manager = ConnectionManager()
 @app.get('/')
 async def root():
     return {'Wiadomość': ""}
+
+
+@app.post('/fill_sketch', 
+          responses={200: {'content': {'image/png': {}}}}, 
+          response_class=Response)
+async def fill_sketch(sketch: UploadFile):
+    image_bytes = []
+    #TODO
+    return Response(content=image_bytes, media_type='image/png')
 
 
 @app.websocket('/virtual_paint')
