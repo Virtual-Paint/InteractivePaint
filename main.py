@@ -3,11 +3,13 @@ from fastapi.responses import Response
 from fastapi.middleware.cors import CORSMiddleware
 
 from WebSocket.connection_manager import ConnectionManager
+from GesturesRecognition.proces_input import InputProcessing
 
 app = FastAPI()
+recognizer = InputProcessing()
 
 origins = [
-    'http://localhost'
+    'http://localhost:3000', 'http://192.168.0.178:3000'
 ]
 
 app.add_middleware(
@@ -41,7 +43,8 @@ async def virtual_paint(websocket: WebSocket):
 
     try:
         while True:
-            data = await websocket.receive_bytes()
-            await manager.send_personal_message(f'Message: {data}')
+            data = await websocket.receive_text()
+            recognizer.bytes_to_image(data)
+            await manager.send_personal_message(f'Odebrano', websocket)
     except WebSocketDisconnect:
         manager.disconnect(websocket)
