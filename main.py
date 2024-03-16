@@ -3,10 +3,10 @@ from fastapi.responses import Response
 from fastapi.middleware.cors import CORSMiddleware
 
 from WebSocket.connection_manager import ConnectionManager
-from GesturesRecognition.proces_input import InputProcessing
+from ImageProcessing.image_processing import ImageProcessing
 
 app = FastAPI()
-recognizer = InputProcessing()
+recognizer = ImageProcessing()
 
 origins = [
     'http://localhost:3000', 'http://192.168.0.178:3000'
@@ -45,7 +45,7 @@ async def virtual_paint(websocket: WebSocket):
         while True:
             data = await websocket.receive_text()
             if len(data) > 10:
-                processed_image = recognizer.bytes_to_image(data)
+                processed_image = recognizer.process_image(data)
                 await manager.send_personal_message(processed_image, websocket)
             else:
                 await manager.send_personal_message("Processing image failed", websocket)
