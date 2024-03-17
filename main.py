@@ -45,7 +45,7 @@ async def virtual_paint(websocket: WebSocket):
         while True:
             data = await websocket.receive_text()
             if len(data) > 10:
-                processed_image = recognizer.process_image(data)
+                processed_image = await recognizer.process_image(data)
                 await manager.send_personal_message(processed_image, websocket)
             else:
                 await manager.send_personal_message("Processing image failed", websocket)

@@ -1,15 +1,31 @@
 from PIL import Image
 from io import BytesIO
 import base64
+import numpy as np
+
+from ImageProcessing.MediaPipe.finger_tracker import LandmarkDetection
 
 
 class ImageProcessing:
     def __init__(self):
-        pass
+        self.sketch_shape = (480, 640)      #TODO - do env? na podstawie przychodzącego obrazu?
+        self.sketch = np.zeros((*self.sketch_shape, 3), np.uint8)
+        
+        self.landmark_detector = LandmarkDetection()
 
-    def process_image(self, bytes: str) -> str:
+    async def process_image(self, bytes: str) -> str:
         image = self._convert_from_bytes(bytes)
-        return self._convert_to_bytes(image)
+
+        processed_input = self.landmark_detector.process_image(image)
+
+        sketch = Image.fromarray(self.sketch)
+        sketch = self._convert_to_bytes(sketch)
+
+        processed_input = self._convert_to_bytes(processed_input)
+        return {
+            'processed_input': processed_input,
+            'sketch': sketch
+        }
 
     @staticmethod
     def _convert_from_bytes(bytes: str) -> Image:
