@@ -11,12 +11,12 @@ class ImageProcessing:
         self.sketch_shape = (480, 640)      #TODO - do env? na podstawie przychodzącego obrazu?
         self.sketch = np.zeros((*self.sketch_shape, 3), np.uint8)
         
-        self.landmark_detector = LandmarkDetection()
+        self.landmark_detector = LandmarkDetection(self.sketch_shape)
 
     async def process_image(self, bytes: str) -> str:
         image = self._convert_from_bytes(bytes)
 
-        processed_input = self.landmark_detector.process_image(image)
+        processed_input, self.sketch = self.landmark_detector.process_image(image, self.sketch)
 
         sketch = Image.fromarray(self.sketch)
         sketch = self._convert_to_bytes(sketch)
@@ -33,6 +33,7 @@ class ImageProcessing:
         binary_data = base64.b64decode(base64_data)
         image_stream = BytesIO(binary_data)
         image = Image.open(image_stream)
+        image.save('test.jpg')
         return image
     
     @staticmethod
