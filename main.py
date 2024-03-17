@@ -28,6 +28,22 @@ async def root():
     return {'Wiadomość': ""}
 
 
+@app.websocket('/virtual_paint')
+async def virtual_paint(websocket: WebSocket):
+    await manager.connect(websocket)
+
+    try:
+        while True:
+            data = await websocket.receive_text()
+            if len(data) > 10:
+                processed_image = recognizer.process_image(data)
+                await manager.send_personal_message(processed_image, websocket)
+            else:
+                await manager.send_personal_message("Processing image failed", websocket)
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
+
+
 @app.post('/fill_sketch', 
           responses={200: {'content': {'image/png': {}}}}, 
           response_class=Response)
@@ -37,17 +53,13 @@ async def fill_sketch(sketch: UploadFile):
     return Response(content=image_bytes, media_type='image/png')
 
 
-@app.websocket('/virtual_paint')
-async def virtual_paint(websocket: WebSocket):
-    await manager.connect(websocket)
+@app.post('/change_color')
+async def change_color(color: str):
+    recognizer.set_color(color)
+    return Response()
 
-    try:
-        while True:
-            data = await websocket.receive_text()
-            if len(data) > 10:
-                processed_image = await recognizer.process_image(data)
-                await manager.send_personal_message(processed_image, websocket)
-            else:
-                await manager.send_personal_message("Processing image failed", websocket)
-    except WebSocketDisconnect:
-        manager.disconnect(websocket)
+
+@app.post('/change_thickness')
+async def change_thickness(thickness: int):
+    recognizer.set_thickness(thickness)
+    return Response()
