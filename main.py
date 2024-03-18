@@ -28,15 +28,6 @@ async def root():
     return {'Wiadomość': ""}
 
 
-@app.post('/fill_sketch', 
-          responses={200: {'content': {'image/png': {}}}}, 
-          response_class=Response)
-async def fill_sketch(sketch: UploadFile):
-    image_bytes = []
-    #TODO
-    return Response(content=image_bytes, media_type='image/png')
-
-
 @app.websocket('/virtual_paint')
 async def virtual_paint(websocket: WebSocket):
     await manager.connect(websocket)
@@ -51,3 +42,24 @@ async def virtual_paint(websocket: WebSocket):
                 await manager.send_personal_message("Processing image failed", websocket)
     except WebSocketDisconnect:
         manager.disconnect(websocket)
+
+
+@app.post('/fill_sketch', 
+          responses={200: {'content': {'image/png': {}}}}, 
+          response_class=Response)
+async def fill_sketch(sketch: UploadFile):
+    image_bytes = []
+    #TODO
+    return Response(content=image_bytes, media_type='image/png')
+
+
+@app.post('/change_color')
+async def change_color(color: str):
+    recognizer.set_color(color)
+    return Response()
+
+
+@app.post('/change_thickness')
+async def change_thickness(thickness: int):
+    recognizer.set_thickness(thickness)
+    return Response()
