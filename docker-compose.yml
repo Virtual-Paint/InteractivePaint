@@ -1,0 +1,16 @@
+services:
+  virtual_paint_frontend:
+    build:
+      context: ../InteractivePaintFrontend/
+      dockerfile: ./Dockerfile
+    ports:
+      - "127.0.0.1:3000:3000"
+
+  virtual_paint_backend:
+    env_file:
+      - .env
+    build:
+      context: ./
+      dockerfile: ./Dockerfile
+    ports:
+      - "127.0.0.1:8000:80"
