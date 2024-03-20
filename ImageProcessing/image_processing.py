@@ -2,6 +2,7 @@ from PIL import Image
 import numpy as np
 
 from ImageProcessing.MediaPipe.finger_tracker import LandmarkDetection
+from ImageProcessing.GAN.inpainter import Inpainter
 from .utils import convert_from_bytes, convert_to_bytes, DrawingSettings
 
 
@@ -12,6 +13,7 @@ class ImageProcessing:
         self.drawing_setup = DrawingSettings()
         
         self.landmark_detector = LandmarkDetection(self.sketch_shape)
+        self.inpainter = Inpainter()
 
     def process_image(self, bytes: str) -> str:
         image = convert_from_bytes(bytes)
@@ -26,6 +28,11 @@ class ImageProcessing:
             'processed_input': processed_input,
             'sketch': sketch
         }
+    
+    def inpaint_sketch(self, model: str = 'dogs') -> str:
+        inpainted = self.inpainter.inpaint_image(model, self.sketch)
+        inpainted = convert_to_bytes(inpainted)
+        return inpainted
     
     def set_color(self, color: str) -> None:
         self.drawing_setup.color = tuple(color)
