@@ -6,3 +6,4 @@ opencv-python==4.9.0.80
 numpy==1.26.3
 mediapipe==0.10.11
 python-multipart==0.0.9
+torchvision==0.16.2
