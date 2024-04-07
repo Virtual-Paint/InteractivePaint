@@ -1,6 +1,7 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile
 from fastapi.responses import Response, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+import asyncio
 
 from WebSocket.connection_manager import ConnectionManager
 from ImageProcessing.image_processing import ImageProcessing

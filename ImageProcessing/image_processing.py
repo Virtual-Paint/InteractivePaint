@@ -19,8 +19,9 @@ class ImageProcessing:
         image = convert_from_bytes(bytes)
 
         processed_input, self.sketch = self.landmark_detector.process_image(image, self.sketch, self.drawing_setup)
-
+        processed_input = processed_input.transpose(Image.FLIP_LEFT_RIGHT)
         sketch = Image.fromarray(self.sketch)
+        sketch = sketch.transpose(Image.FLIP_LEFT_RIGHT)
         sketch = convert_to_bytes(sketch)
 
         processed_input = convert_to_bytes(processed_input)
