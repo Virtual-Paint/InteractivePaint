@@ -9,7 +9,9 @@ from .utils import convert_from_bytes, convert_to_bytes, DrawingSettings
 class ImageProcessing:
     def __init__(self):
         self.sketch_shape = (480, 640)      #TODO - do env? na podstawie przychodzącego obrazu?
-        self.sketch = np.zeros((*self.sketch_shape, 3), np.uint8) + 255     #TODO to i shape do drawing_setup ??
+        #self.sketch = np.zeros((*self.sketch_shape, 3), np.uint8) + 255     #TODO to i shape do drawing_setup ??
+        self.sketch = np.array(Image.open('212.jpg').resize((640, 480)).convert("RGB"))
+        print(self.sketch.shape)
         self.drawing_setup = DrawingSettings()
         
         self.landmark_detector = LandmarkDetection(self.sketch_shape)
@@ -20,6 +22,7 @@ class ImageProcessing:
 
         processed_input, self.sketch = self.landmark_detector.process_image(image, self.sketch, self.drawing_setup)
         processed_input = processed_input.transpose(Image.FLIP_LEFT_RIGHT)
+
         sketch = Image.fromarray(self.sketch)
         sketch = sketch.transpose(Image.FLIP_LEFT_RIGHT)
         sketch = convert_to_bytes(sketch)
@@ -32,6 +35,7 @@ class ImageProcessing:
     
     def inpaint_sketch(self, model: str = 'dogs') -> str:
         inpainted = self.inpainter.inpaint_image(model, self.sketch)
+        inpainted = inpainted.resize((640, 480)).transpose(Image.FLIP_LEFT_RIGHT)
         inpainted = convert_to_bytes(inpainted)
         return inpainted
     
