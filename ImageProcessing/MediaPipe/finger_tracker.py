@@ -7,6 +7,7 @@ import cv2
 
 from .utils import draw_landmarks_on_image
 from ImageProcessing.utils import DrawingSettings
+from ImageProcessing.GesturesRecognition.recognize import Recognizer
 
 
 class LandmarkDetection:
@@ -17,6 +18,7 @@ class LandmarkDetection:
         options = vision.HandLandmarkerOptions(base_options=base_options,
                                                num_hands=1)
         self.detector = vision.HandLandmarker.create_from_options(options)
+        self.recognizer = Recognizer()
 
         self.previous_position = None
         self.shape = shape
@@ -28,7 +30,11 @@ class LandmarkDetection:
         detection_result = self.detector.detect(mp_image)
 
         if detection_result.hand_landmarks:
-            self._draw_on_sketch(detection_result, sketch, drawing_setup)
+            gesture = self.recognizer.recognize_gesture(detection_result)
+            if gesture == 'finger':
+                self._draw_on_sketch(detection_result, sketch, drawing_setup)
+            else:
+                self.previous_position = None
         else:
             self.previous_position = None
         annotated_image = draw_landmarks_on_image(numpy_image, detection_result)

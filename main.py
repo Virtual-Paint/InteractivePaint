@@ -1,6 +1,7 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile
-from fastapi.responses import Response
+from fastapi.responses import Response, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+import asyncio
 
 from WebSocket.connection_manager import ConnectionManager
 from ImageProcessing.image_processing import ImageProcessing
@@ -44,13 +45,12 @@ async def virtual_paint(websocket: WebSocket):
         manager.disconnect(websocket)
 
 
-@app.post('/fill_sketch', 
+@app.get('/fill_sketch', 
           responses={200: {'content': {'image/png': {}}}}, 
           response_class=Response)
-async def fill_sketch(sketch: UploadFile):
-    image_bytes = []
-    #TODO
-    return Response(content=image_bytes, media_type='image/png')
+async def fill_sketch():
+    inpainted = recognizer.inpaint_sketch('dogs')
+    return JSONResponse(content={'inpainted': inpainted})
 
 
 @app.post('/change_color')
