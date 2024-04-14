@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from enum import Enum
 
 
 LANDMARKS_LINKS = {
@@ -19,15 +20,16 @@ LANDMARKS_LINKS = {
     18: [19],
     19: [20]
 }
-GESTURES = {
-    0: 'one',
-    1: 'fist',
-    2: 'stop',
-    3: 'peace',
-    4: 'four',
-    5: 'three2',
-    6: 'rock'
-}
+
+
+class Gestures(Enum):
+    ONE = 0
+    FIST = 1
+    STOP = 2
+    PEACE = 3
+    FOUR = 4
+    THREE2 = 5
+    ROCK = 6
 
 
 @dataclass
