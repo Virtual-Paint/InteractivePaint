@@ -30,7 +30,7 @@ class DrawingSettings:
         
     def change_thickness(self):
         thicnesses = list(Thickness)
-        idx = thicnesses.indes(self.thickness) + 1
+        idx = thicnesses.index(self.thickness) + 1
         self.thickness = thicnesses[idx] if idx < len(Thickness) else thicnesses[0]
     
 

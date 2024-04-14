@@ -22,13 +22,6 @@ class LandmarkDetection:
 
         self.previous_position = None
         self.shape = shape
-        self.GESTURE_ACTION = {
-            'one': self._draw,
-            'stop': self._rubber,
-            'four': self._change_color,
-            'three2': self._change_thickness,
-            'peace': self._draw_circle
-        }
 
     def process_image(self, image: Image, sketch: np.ndarray, drawing_setup: DrawingSettings) -> Image:
         numpy_image = np.asarray(image)
@@ -39,14 +32,14 @@ class LandmarkDetection:
         if detection_result.hand_landmarks:     #TODO przerobic ten element
             gesture = self.recognizer.recognize_gesture(detection_result)
             hand_landmarks_list = detection_result.hand_landmarks[0]
-            if gesture == 'finger':
+            if gesture == 'one':
                 self._draw(hand_landmarks_list, sketch, drawing_setup)
-            elif gesture == 'palm':
+            elif gesture == 'stop':
                 self._rubber(hand_landmarks_list, sketch)
             elif gesture == 'peace':     # TODO dodać więcej kolorów, aby zmieniały się na następny po kazdym wykryciu gestu
-                drawing_setup.change_color(drawing_setup)
-            # elif gesture == 'peace':
-            #     drawing_setup.thickness = 8
+                drawing_setup.change_color()
+            elif gesture == 'three2':
+                drawing_setup.change_thickness()
             else:
                 self.previous_position = None
         else:
@@ -61,7 +54,7 @@ class LandmarkDetection:
         denormalized_coordinates = (int(pointing_finger.x * self.shape[1]), int(pointing_finger.y * self.shape[0]))
  
         if self.previous_position:
-            cv2.line(sketch, self.previous_position, denormalized_coordinates, drawing_setup.color.value(), drawing_setup.thickness.value())
+            cv2.line(sketch, self.previous_position, denormalized_coordinates, drawing_setup.color.value, drawing_setup.thickness.value)
         self.previous_position = denormalized_coordinates
 
     def _rubber(self, hand_landmarks_list: list, sketch: np.ndarray) -> None:
