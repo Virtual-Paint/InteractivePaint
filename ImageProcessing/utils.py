@@ -1,13 +1,37 @@
 from PIL import Image
 from io import BytesIO
 from dataclasses import dataclass
+from enum import Enum
 import base64
 
 
+class Colors(Enum):
+    BLACK = (0, 0, 0)
+    RED = (255, 0, 0)
+    GREEN = (0, 255, 0)
+    BLUE = (0, 0, 255)
+    
+class Thickness(Enum):
+    TINY = 2
+    MEDIUM = 4
+    LARGE = 8
+    MASSIVE = 16
+    
+    
 @dataclass
 class DrawingSettings:
-    color: tuple = (0, 0, 0)
-    thickness: int = 4
+    color: Colors = Colors.BLACK
+    thickness: Thickness = Thickness.MEDIUM
+    
+    def change_color(self):
+        colors = list(Colors)
+        idx = colors.index(self.color) + 1
+        self.color = colors[idx] if idx < len(Colors) else colors[0]
+        
+    def change_thickness(self):
+        thicnesses = list(Thickness)
+        idx = thicnesses.indes(self.thickness) + 1
+        self.thickness = thicnesses[idx] if idx < len(Thickness) else thicnesses[0]
     
 
 def convert_from_bytes(bytes: str) -> Image:

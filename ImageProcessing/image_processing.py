@@ -38,7 +38,9 @@ class ImageProcessing:
         return inpainted
     
     def set_color(self, color: str) -> None:
-        self.drawing_setup.color = tuple(color)
+        raise NotImplementedError
+        #self.drawing_setup.color = tuple(color)
 
     def set_thickness(self, thickness: int) -> None:
-        self.drawing_setup.thickness = thickness
+        raise NotImplementedError
+        #self.drawing_setup.thickness = thickness
