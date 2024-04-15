@@ -20,6 +20,7 @@ class ImageProcessing:
 
         processed_input, self.sketch = self.landmark_detector.process_image(image, self.sketch, self.drawing_setup)
         processed_input = processed_input.transpose(Image.FLIP_LEFT_RIGHT)
+
         sketch = Image.fromarray(self.sketch)
         sketch = sketch.transpose(Image.FLIP_LEFT_RIGHT)
         sketch = convert_to_bytes(sketch)
@@ -32,11 +33,14 @@ class ImageProcessing:
     
     def inpaint_sketch(self, model: str = 'dogs') -> str:
         inpainted = self.inpainter.inpaint_image(model, self.sketch)
+        inpainted = inpainted.transpose(Image.FLIP_LEFT_RIGHT)
         inpainted = convert_to_bytes(inpainted)
         return inpainted
     
     def set_color(self, color: str) -> None:
-        self.drawing_setup.color = tuple(color)
+        raise NotImplementedError
+        #self.drawing_setup.color = tuple(color)
 
     def set_thickness(self, thickness: int) -> None:
-        self.drawing_setup.thickness = thickness
+        raise NotImplementedError
+        #self.drawing_setup.thickness = thickness

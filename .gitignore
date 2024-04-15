@@ -2,3 +2,5 @@ __pycache__
 test/
 *.jpg
 *.pth.tar
+*.txt
+todo.md

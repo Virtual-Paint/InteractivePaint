@@ -22,15 +22,37 @@ class Inpainter:
 		self._load_models()
 	
 	def inpaint_image(self, model: str, image: np.ndarray) -> Image:
-		image = self.transform(image)
-		image = image.unsqueeze(0).to(self.device)
+		image = np.copy(image)
+		min_x, min_y, max_x, max_y = self._find_bounding_box(image)
+		cropped_image = image[min_y:max_y, min_x:max_x, :]
+		cropped_image = self.transform(cropped_image)
+		cropped_image = cropped_image.unsqueeze(0).to(self.device)
 		if torch.cuda.is_available():
 			self.models[model].cuda()
-		inpainted = self.models[model](image)
+		inpainted = self.models[model](cropped_image)
 		inpainted = inpainted * 0.5 + 0.5
 		inpainted.detach()
 		inpainted = inpainted.squeeze(0).cpu()
-		return F.to_pil_image(inpainted)
+		inpainted = np.array(F.to_pil_image(inpainted).resize((max_x-min_x, max_y-min_y)))
+		image[min_y:max_y, min_x:max_x, :] = inpainted
+		return F.to_pil_image(image)
+	
+	def _find_bounding_box(self, image: np.ndarray) -> Image:
+		min_x, min_y = 1000, 1000
+		max_x, max_y = 0, 0
+		for x in range(0, image.shape[1]):
+			for y in range(0, image.shape[0]):
+				if np.any(image[y, x] < 255):
+					if min_x > x:
+						min_x = x
+					if min_y > y:
+						min_y = y
+					if max_x < x:
+						max_x = x
+					if max_y < y:
+						max_y = y
+		return min_x, min_y, max_x, max_y
+
 	
 	def _load_models(self) -> None:
 		directory = 'ImageProcessing/GAN/models/'

@@ -29,10 +29,17 @@ class LandmarkDetection:
 
         detection_result = self.detector.detect(mp_image)
 
-        if detection_result.hand_landmarks:
+        if detection_result.hand_landmarks:     #TODO przerobic ten element
             gesture = self.recognizer.recognize_gesture(detection_result)
-            if gesture == 'finger':
-                self._draw_on_sketch(detection_result, sketch, drawing_setup)
+            hand_landmarks_list = detection_result.hand_landmarks[0]
+            if gesture == 'one':
+                self._draw(hand_landmarks_list, sketch, drawing_setup)
+            elif gesture == 'stop':
+                self._rubber(hand_landmarks_list, sketch)
+            elif gesture == 'peace':     # TODO dodać więcej kolorów, aby zmieniały się na następny po kazdym wykryciu gestu
+                drawing_setup.change_color()
+            elif gesture == 'three2':
+                drawing_setup.change_thickness()
             else:
                 self.previous_position = None
         else:
@@ -41,24 +48,37 @@ class LandmarkDetection:
         
         return Image.fromarray(annotated_image), sketch
     
-    def _draw_on_sketch(self, detection_result, sketch: np.ndarray, drawing_setup: DrawingSettings) -> None:
-        hand_landmarks_list = detection_result.hand_landmarks[0]
-
+    def _draw(self, hand_landmarks_list: list, sketch: np.ndarray, drawing_setup: DrawingSettings) -> None:
         pointing_finger = hand_landmarks_list[7]
         
         denormalized_coordinates = (int(pointing_finger.x * self.shape[1]), int(pointing_finger.y * self.shape[0]))
  
         if self.previous_position:
-            cv2.line(sketch, self.previous_position, denormalized_coordinates, drawing_setup.color, drawing_setup.thickness)
+            cv2.line(sketch, self.previous_position, denormalized_coordinates, drawing_setup.color.value, drawing_setup.thickness.value)
         self.previous_position = denormalized_coordinates
 
+    def _rubber(self, hand_landmarks_list: list, sketch: np.ndarray) -> None:
+        wrist = hand_landmarks_list[0]
+        index_finger_mcp = hand_landmarks_list[5]
+        pinky_mcp = hand_landmarks_list[17]
 
-# def main():
-#     detection = LandmarkDetection((480, 640))
-#     test = Image.open('test.jpg')
-#     sketch = np.zeros((480, 640, 3), np.uint8)
+        denormalized_wrist = (int(wrist.x * self.shape[1]), int(wrist.y * self.shape[0]))
+        denormalized_index_finger_mcp = (int(index_finger_mcp.x * self.shape[1]), int(index_finger_mcp.y * self.shape[0]))
+        denormalized_pinky_mcp = (int(pinky_mcp.x * self.shape[1]), int(pinky_mcp.y * self.shape[0]))
+
+        x_center = int((denormalized_wrist[0] + denormalized_index_finger_mcp[0] + denormalized_pinky_mcp[0]) / 3)
+        y_center = int((denormalized_wrist[1] + denormalized_index_finger_mcp[1] + denormalized_pinky_mcp[1]) / 3)
+
+        radius = 10
+        color = (255, 255, 255)
+        thickness = -1
+        cv2.circle(sketch, (x_center, y_center), radius, color, thickness)
+        
+    def _change_color(self, drawing_setup: DrawingSettings):
+        drawing_setup.change_color()
     
-#     detection.process_image(test, sketch)
-
-
-# main()
+    def _change_thickness(self, drawing_setup: DrawingSettings):
+        drawing_setup.change_thickness()
+    
+    def _draw_circle(self):
+        raise NotImplementedError
