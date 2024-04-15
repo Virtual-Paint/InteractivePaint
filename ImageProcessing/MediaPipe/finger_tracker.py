@@ -82,3 +82,4 @@ class LandmarkDetection:
     
     def _draw_circle(self):
         raise NotImplementedError
+
