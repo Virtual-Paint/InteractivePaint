@@ -1,6 +1,7 @@
 import numpy as np
 import cv2
 from PIL import Image
+from collections import deque
 
 from .utils import Colors, Thickness, convert_to_bytes
 
@@ -12,7 +13,7 @@ class Sketch:
         
         self.color = Colors.BLACK
         self.thickness = Thickness.MEDIUM
-        self.gestures_log = []
+        self.gestures_log = deque(maxlen=4)
         self.previous_position = None
         
     def perform_action(self, gesture: str, hand_landmarks: list) -> None:
@@ -21,17 +22,23 @@ class Sketch:
         if gesture == 'ONE':
             self._draw(hand_landmarks)
             return
+        elif gesture == 'STOP':
+            self._rubber(hand_landmarks)
+            return
         self.previous_position = None
             
-        if len(set(self.gestures_log[:-3])) != 1:
+        if len(set(list(self.gestures_log)[-3:])) != 1 or self.gestures_log[0] == gesture:
             return
         
         if gesture == 'STOP':
             self._rubber(hand_landmarks)
+            print(f'Rubber!')
         elif gesture == 'PEACE':
             self._change_color()
+            print(f'Changed color! New color is {self.color}')
         elif gesture == 'THREE2':
             self._change_thickness()
+            print(f'Changed thickness! New thickness is {self.thickness}')
     
     def get_bytes_sketch(self) -> str:
         sketch = Image.fromarray(self.sketch)

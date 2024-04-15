@@ -19,7 +19,8 @@ class ImageProcessing:
 
         gesture, hand_landmarks = self.gesture_detector.process_image(image)
         
-        self.sketch.perform_action(gesture, hand_landmarks)
+        if gesture:
+            self.sketch.perform_action(gesture, hand_landmarks)
         
         return {
             'processed_input': self._process_input_image(image, hand_landmarks),
