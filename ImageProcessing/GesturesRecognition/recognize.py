@@ -30,7 +30,7 @@ class Recognizer:
 			self.model.cuda()
 		result = self.model(image)
 		probability = torch.softmax(result.squeeze(), dim=0)
-		gesture = probability.argmax()
+		conf, gesture = torch.max(probability, 0)
 		return Gestures(gesture.item()).name
 	
 	def _convert_to_image(self, landmarks: list) -> np.ndarray:
