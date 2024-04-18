@@ -30,16 +30,25 @@ class Sketch:
             return
         self.previous_position = None
         
+        # if len(set(list(self.gestures_log)[:3])) == 1 and self.gestures_log[0] == 'PEACE' and self.gestures_log[-1] != 'PEACE':
+        #     self.prev_pos_for_shapes = None
+        # if len(set(list(self.gestures_log)[:3])) == 1 and self.gestures_log[0] == 'ROCK' and self.gestures_log[-1] != 'ROCK':
+        #     self.prev_pos_for_shapes = None
+        if len(set(list(self.gestures_log)[:3])) != 1:
+            self.prev_pos_for_shapes = None
+        
         if len(set(list(self.gestures_log)[-3:])) == 1 and self.gestures_log[-1] == 'PEACE' and self.gestures_log[0] != 'PEACE':
             self.sketch_history = np.copy(self.sketch)
         if len(set(list(self.gestures_log)[-3:])) == 1 and self.gestures_log[-1] == 'PEACE' and self.gestures_log[0] == 'PEACE':
-            self._draw_shape(hand_landmarks)
-        if len(set(list(self.gestures_log)[:3])) == 1 and self.gestures_log[0] == 'PEACE' and self.gestures_log[-1] != 'PEACE':
-            self.prev_pos_for_shapes = None
+            self._draw_rectangle(hand_landmarks)
+            
+        if len(set(list(self.gestures_log)[-3:])) == 1 and self.gestures_log[-1] == 'ROCK' and self.gestures_log[0] != 'ROCK':
+            self.sketch_history = np.copy(self.sketch)
+        if len(set(list(self.gestures_log)[-3:])) == 1 and self.gestures_log[-1] == 'ROCK' and self.gestures_log[0] == 'ROCK':
+            self._draw_circle(hand_landmarks)
             
         if len(set(list(self.gestures_log)[-3:])) != 1 or self.gestures_log[0] == gesture:
             return
-        
         if gesture == 'FOUR':
             self._change_color()
             print(f'Changed color! New color is {self.color}')
@@ -51,7 +60,24 @@ class Sketch:
         sketch = Image.fromarray(self.sketch)
         return convert_to_bytes(sketch)
     
-    def _draw_shape(self, hand_landmarks_list: list) -> None:
+    def _draw_circle(self, hand_landmarks_list: list) -> None:
+        index_finger_tip = hand_landmarks_list[8]
+        pinky_tip = hand_landmarks_list[12]
+        
+        denormalized_index_finger_tip = (int(index_finger_tip.x * self.shape[1]), int(index_finger_tip.y * self.shape[0]))
+        denormalized_pinky_tip = (int(pinky_tip.x * self.shape[1]), int(pinky_tip.y * self.shape[0]))
+        
+        coordinates = (int((denormalized_index_finger_tip[0] + denormalized_pinky_tip[0]) / 2),
+                       int((denormalized_index_finger_tip[1] + denormalized_pinky_tip[1]) / 2))
+        
+        if self.prev_pos_for_shapes:
+            radius = int(abs(coordinates[1] - self.prev_pos_for_shapes[1]))
+            self.sketch = np.copy(self.sketch_history)
+            cv2.circle(self.sketch, self.prev_pos_for_shapes, radius, self.color.value, self.thickness.value)
+        else:
+            self.prev_pos_for_shapes = coordinates
+    
+    def _draw_rectangle(self, hand_landmarks_list: list) -> None:
         index_finger_tip = hand_landmarks_list[8]
         middle_finger_tip = hand_landmarks_list[12]
         
@@ -102,6 +128,3 @@ class Sketch:
         thicnesses = list(Thickness)
         idx = thicnesses.index(self.thickness) + 1
         self.thickness = thicnesses[idx] if idx < len(Thickness) else thicnesses[0]
-    
-    def _draw_circle(self) -> None:
-        raise NotImplementedError
