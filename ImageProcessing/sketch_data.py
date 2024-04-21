@@ -4,6 +4,7 @@ from PIL import Image
 from collections import deque
 
 from .utils import Colors, Thickness, convert_to_bytes
+from ImageProcessing.KalmanFilter.kalman import KalmanFilter
 
 
 class Sketch:
@@ -12,23 +13,31 @@ class Sketch:
         self.sketch = np.zeros((*self.shape, 3), np.uint8) + 255     #TODO to i shape do drawing_setup ??
         self.sketch_history = None
                 
+        self.kalman = KalmanFilter(0.1, 1, 1, 1, 0.1, 0.1)        
+        
         self.color = Colors.BLACK
         self.thickness = Thickness.MEDIUM
         self.gestures_log = deque(maxlen=4)
         self.previous_position = None
+        self.previous_position_kalman = None
         
         self.prev_pos_for_shapes = None
         
     def perform_action(self, gesture: str, hand_landmarks: list) -> None:
         self.gestures_log.append(gesture)
         
+        estimation = self._calculate_kalman(hand_landmarks)
+        print(f'Est: {estimation}')
+        
         if gesture == 'ONE':
             self._draw(hand_landmarks)
+            self._draw_with_kalman(estimation)
             return
         elif gesture == 'STOP':
             self._rubber(hand_landmarks)
             return
         self.previous_position = None
+        self.previous_position_kalman = None
         
         # if len(set(list(self.gestures_log)[:3])) == 1 and self.gestures_log[0] == 'PEACE' and self.gestures_log[-1] != 'PEACE':
         #     self.prev_pos_for_shapes = None
@@ -59,6 +68,37 @@ class Sketch:
     def get_bytes_sketch(self) -> str:
         sketch = Image.fromarray(self.sketch)
         return convert_to_bytes(sketch)
+    
+    def _calculate_kalman(self, hand_landmarks_list: list) -> tuple[int, int]:
+        index_finger_tip = hand_landmarks_list[8]
+        denormalized_index_finger_tip = (int(index_finger_tip.x * self.shape[1]), int(index_finger_tip.y * self.shape[0]))
+        #cv2.circle(self.sketch, denormalized_index_finger_tip, 5, (250, 0, 0), 2)
+        center = np.matrix([[denormalized_index_finger_tip[0]],
+                            [denormalized_index_finger_tip[1]]])
+        
+        (x, y) = self.kalman.predict()
+        prediction = (int(x), int(y))
+        #cv2.circle(self.sketch, prediction, 10, (0, 200, 0), 2)
+        
+        (x1, y1) = self.kalman.update(center)
+        estimation = (int(x1), int(y1))
+        #cv2.circle(self.sketch, estimation, 10, (0, 200, 200), 2)
+        return estimation
+        
+    def _draw(self, hand_landmarks_list: list) -> None:
+        pointing_finger = hand_landmarks_list[7]
+        
+        denormalized_coordinates = (int(pointing_finger.x * self.shape[1]), int(pointing_finger.y * self.shape[0]))     #TODO to do oddzielnej funkcji
+        print(f'Real: {denormalized_coordinates}')
+ 
+        if self.previous_position:
+            cv2.line(self.sketch, self.previous_position, denormalized_coordinates, self.color.value, self.thickness.value)
+        self.previous_position = denormalized_coordinates
+        
+    def _draw_with_kalman(self, estimation: tuple) -> None:
+        if self.previous_position_kalman:
+            cv2.line(self.sketch, self.previous_position_kalman, estimation, (0, 255, 0), self.thickness.value)
+        self.previous_position_kalman = estimation
     
     def _draw_circle(self, hand_landmarks_list: list) -> None:
         index_finger_tip = hand_landmarks_list[8]
@@ -92,15 +132,6 @@ class Sketch:
             cv2.rectangle(self.sketch, self.prev_pos_for_shapes, coordinates, self.color.value, self.thickness.value)
         else:
             self.prev_pos_for_shapes = coordinates
-        
-    def _draw(self, hand_landmarks_list: list) -> None:
-        pointing_finger = hand_landmarks_list[7]
-        
-        denormalized_coordinates = (int(pointing_finger.x * self.shape[1]), int(pointing_finger.y * self.shape[0]))     #TODO to do oddzielnej funkcji
- 
-        if self.previous_position:
-            cv2.line(self.sketch, self.previous_position, denormalized_coordinates, self.color.value, self.thickness.value)
-        self.previous_position = denormalized_coordinates
 
     def _rubber(self, hand_landmarks_list: list) -> None:
         wrist = hand_landmarks_list[0]
