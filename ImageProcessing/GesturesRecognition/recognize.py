@@ -8,7 +8,7 @@ from os import listdir
 import cv2
 
 from .architecture import Net
-from .utils import LANDMARKS_LINKS, GESTURES, ImageShape
+from .utils import LANDMARKS_LINKS, Gestures, ImageShape
 
 
 class Recognizer:
@@ -22,7 +22,7 @@ class Recognizer:
 	def __init__(self):
 		self._load_model()
 	
-	def recognize_gesture(self, landmarks) -> Image:
+	def recognize_gesture(self, landmarks: list) -> Image:
 		image = self._convert_to_image(landmarks)
 		image = self.transform(image)
 		image = image.unsqueeze(0).to(self.device)
@@ -30,12 +30,12 @@ class Recognizer:
 			self.model.cuda()
 		result = self.model(image)
 		probability = torch.softmax(result.squeeze(), dim=0)
-		gesture = probability.argmax()
-		return GESTURES[gesture.item()]
+		conf, gesture = torch.max(probability, 0)
+		return Gestures(gesture.item()).name
 	
-	def _convert_to_image(self, landmarks):
-		x = [landmark.x for landmark in landmarks.hand_landmarks[0]]
-		y = [landmark.y for landmark in landmarks.hand_landmarks[0]]
+	def _convert_to_image(self, landmarks: list) -> np.ndarray:
+		x = [landmark.x for landmark in landmarks]
+		y = [landmark.y for landmark in landmarks]
 		min_x = min(x)
 		max_x = max(x)
 		min_y = min(y)
