@@ -6,7 +6,31 @@ import base64
 from mediapipe import solutions
 from mediapipe.framework.formats import landmark_pb2
 import numpy as np
-import cv2
+from collections import deque
+
+
+class CustomDeque(deque):
+    def is_last_3_gestures_same(self) -> bool:
+        return len(set(list(self)[-3:])) == 1
+    
+    def draw_shape(self, gesture: str) -> bool:
+        return len(set(self)) == 1 and self[0] == gesture
+    
+    def create_sketch_copy(self, gesture: str) -> bool:
+        return self.is_last_3_gestures_same() and self[-1] == gesture and self[0] != gesture
+    
+    def perform_action(self):
+        return self.is_last_3_gestures_same() and self[0] != self[-1]
+    
+    
+class Coordinates:
+    def __init__(self, x: int, y: int) -> None:
+        self.x = x
+        self.y = y
+        
+    def __iter__(self):
+        yield self.x
+        yield self.y
 
 
 class Colors(Enum):
