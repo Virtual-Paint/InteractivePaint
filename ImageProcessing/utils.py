@@ -19,6 +19,13 @@ class CustomDeque(deque):
     def perform_action(self) -> bool:
         return self.is_last_3_gestures_same() and self[0] != self[-1]
     
+    def clear_prev_pos(self) -> bool:
+        return not any([gesture == 'ONE' for gesture in self])
+        #return self.gestures_log[-1] != 'ONE' and self.gestures_log[-2] != 'ONE' and self.gestures_log[-3] != 'ONE'
+    
+    def clear_shape_prev_pos(self) -> bool:
+        return len(set(list(self)[:3])) != 1 and self[-1] != self[0]
+    
     
 class Coordinates:
     def __init__(self, x: int, y: int) -> None:
