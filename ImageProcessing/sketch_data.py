@@ -1,7 +1,6 @@
 import numpy as np
 import cv2
 from PIL import Image
-from collections import deque
 from mediapipe.tasks.python.components.containers.landmark import NormalizedLandmark
 
 from .utils import Colors, Thickness, convert_to_bytes, CustomDeque, Coordinates
@@ -18,7 +17,7 @@ class Sketch:
         
         self.color = Colors.BLACK
         self.thickness = Thickness.MEDIUM
-        self.gestures_log = CustomDeque(maxlen=4)
+        self.gestures_log = CustomDeque([None]*4, maxlen=4)
         self.previous_position = None
         
         self.prev_pos_for_shapes = None
@@ -26,59 +25,51 @@ class Sketch:
     def perform_action(self, gesture: str, hand_landmarks: list) -> None:
         self.gestures_log.append(gesture)
         
-        estimation = self._calculate_kalman(hand_landmarks)
+        self._calculate_kalman(hand_landmarks)
+        
+        if self.gestures_log[-1] != 'ONE' and self.gestures_log[-2] != 'ONE' and self.gestures_log[-3] != 'ONE':
+            self.previous_position = None
+        if len(set(list(self.gestures_log)[:3])) != 1 and self.gestures_log[-1] != self.gestures_log[0]:
+            self.prev_pos_for_shapes = None
+        if self.gestures_log.perform_action():
+            self.sketch_history = np.copy(self.sketch)
+        
         
         if gesture == 'ONE':
-            self._draw(estimation)
-            return
+            self._draw()
         elif gesture == 'STOP':
             self._rubber(hand_landmarks)
-            return
-        self.previous_position = None
-        
-        if len(set(list(self.gestures_log)[:3])) != 1:
-            self.prev_pos_for_shapes = None
-        
-        if self.gestures_log.create_sketch_copy('PEACE'):
-            self.sketch_history = np.copy(self.sketch)
-        if self.gestures_log.draw_shape('PEACE'):
-            self._draw_rectangle(hand_landmarks)
-            
-        if self.gestures_log.create_sketch_copy('ROCK'):
-            self.sketch_history = np.copy(self.sketch)
-        if self.gestures_log.draw_shape('ROCK'):
+        elif gesture == 'PEACE':
+            self._draw_rectangle(hand_landmarks)   
+        elif gesture == 'ROCK':
             self._draw_circle(hand_landmarks)
-            
-        if len(set(list(self.gestures_log)[-3:])) != 1 or self.gestures_log[0] == gesture:
-            return
-        if gesture == 'FOUR':
+        elif gesture == 'FOUR':
             self._change_color()
-            print(f'Changed color! New color is {self.color}')
         elif gesture == 'THREE2':
             self._change_thickness()
-            print(f'Changed thickness! New thickness is {self.thickness}')
     
     def get_bytes_sketch(self) -> str:
         sketch = Image.fromarray(self.sketch)
         return convert_to_bytes(sketch)
     
-    def _calculate_kalman(self, hand_landmarks_list: list) -> tuple[int, int]:
+    def _calculate_kalman(self, hand_landmarks_list: list) -> None:
         index_pos = self._denormalize_coordinates(hand_landmarks_list[8])
         center = np.matrix([[index_pos.x],
                             [index_pos.y]])
         
-        prediction, estimation = self.kalman.calculate(center)
-        return estimation
+        prediction, self.estimation = self.kalman.calculate(center)
         
-    def _draw(self, estimation: tuple) -> None:
+    def _draw(self) -> None:
         if self.previous_position:
-            cv2.line(self.sketch, self.previous_position, estimation, self.color.value, self.thickness.value)
-        self.previous_position = estimation
+            cv2.line(self.sketch, self.previous_position, self.estimation, self.color.value, self.thickness.value)
+        self.previous_position = self.estimation
     
     def _draw_circle(self, hand_landmarks_list: list) -> None:
+        if not self.gestures_log.draw_shape('ROCK'):
+            return
         index_pos, pinky_pos = self._denormalize_coordinates(hand_landmarks_list[8], hand_landmarks_list[20])
         
-        coordinates = Coordinates(int((index_pos.x + pinky_pos.y) / 2),
+        coordinates = Coordinates(int((index_pos.x + pinky_pos.x) / 2),
                                   int((index_pos.y + pinky_pos.y) / 2))
         
         if self.prev_pos_for_shapes:
@@ -89,6 +80,8 @@ class Sketch:
             self.prev_pos_for_shapes = coordinates
     
     def _draw_rectangle(self, hand_landmarks_list: list) -> None:
+        if not self.gestures_log.draw_shape('PEACE'):
+            return
         index_pos, middle_pos = self._denormalize_coordinates(hand_landmarks_list[8], hand_landmarks_list[12])
         
         coordinates = Coordinates(int((index_pos.x + middle_pos.x) / 2),
@@ -111,14 +104,18 @@ class Sketch:
         cv2.circle(self.sketch, tuple(coordinates), 10, (255, 255, 255), -1)
         
     def _change_color(self) -> None:
-        colors = list(Colors)
-        idx = colors.index(self.color) + 1
-        self.color = colors[idx] if idx < len(Colors) else colors[0]
+        if self.gestures_log.perform_action():
+            colors = list(Colors)
+            idx = colors.index(self.color) + 1
+            self.color = colors[idx] if idx < len(Colors) else colors[0]
+            print(f'Changed color! New color is {self.color}')
         
     def _change_thickness(self) -> None:
-        thicnesses = list(Thickness)
-        idx = thicnesses.index(self.thickness) + 1
-        self.thickness = thicnesses[idx] if idx < len(Thickness) else thicnesses[0]
+        if self.gestures_log.perform_action():
+            thicnesses = list(Thickness)
+            idx = thicnesses.index(self.thickness) + 1
+            self.thickness = thicnesses[idx] if idx < len(Thickness) else thicnesses[0]
+            print(f'Changed thickness! New thickness is {self.thickness}')
         
     def _denormalize_coordinates(self, *args: NormalizedLandmark) -> tuple[Coordinates, ...]:
         result = [Coordinates(int(arg.x * self.shape[1]), int(arg.y * self.shape[0])) for arg in args]

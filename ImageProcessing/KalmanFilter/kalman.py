@@ -37,7 +37,7 @@ class KalmanFilter:
                             [0, pow(y_std_meas, 2)]])
         self.P = np.eye(self.A.shape[1])
         
-    def calculate(self, z):
+    def calculate(self, z: np.matrix) -> tuple[tuple, tuple]:
         prediction = self._predict()
         estimation = self._update(z)
         return prediction, estimation
@@ -48,7 +48,7 @@ class KalmanFilter:
         self.P = np.dot(np.dot(self.A, self.P), self.A.T) + self.Q
         return (int(self.x[0]), int(self.x[1]))
     
-    def _update(self, z):
+    def _update(self, z: np.matrix) -> tuple[int, int]:
         S = np.dot(self.H, np.dot(self.P, self.H.T)) + self.R
         
         K = np. dot(np.dot(self.P, self.H.T), np.linalg.inv(S))

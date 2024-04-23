@@ -16,10 +16,7 @@ class CustomDeque(deque):
     def draw_shape(self, gesture: str) -> bool:
         return len(set(self)) == 1 and self[0] == gesture
     
-    def create_sketch_copy(self, gesture: str) -> bool:
-        return self.is_last_3_gestures_same() and self[-1] == gesture and self[0] != gesture
-    
-    def perform_action(self):
+    def perform_action(self) -> bool:
         return self.is_last_3_gestures_same() and self[0] != self[-1]
     
     
