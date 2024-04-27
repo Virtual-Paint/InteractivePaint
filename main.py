@@ -5,7 +5,7 @@ import asyncio
 
 from WebSocket.connection_manager import ConnectionManager
 from ImageProcessing.image_processing import ImageProcessing
-from ImageProcessing.GAN.inpainter import Inpainter
+from ImageProcessing.sketch_data import Sketch
 from models import InpaintModel
 
 
@@ -25,7 +25,7 @@ app.add_middleware(
 
 
 manager = ConnectionManager()
-inpainter = Inpainter()
+image_processor = ImageProcessing()
 
 
 @app.get('/')
@@ -36,16 +36,16 @@ async def root():
 @app.websocket('/virtual_paint')
 async def virtual_paint(websocket: WebSocket):
     await manager.connect(websocket)
-    recognizer = None
+    sketch = None
 
     try:
         while True:
-            if not recognizer:
-                recognizer = ImageProcessing()
+            if not sketch:
+                sketch = Sketch(image_processor.kalman)
             
             data = await websocket.receive_text()
             try:
-                processed_image = recognizer.process_image(data)
+                processed_image = image_processor.process_image(data, sketch)
                 await manager.send_personal_message(processed_image, websocket)
             except:
                 await manager.send_personal_message("Error", websocket)
@@ -57,5 +57,5 @@ async def virtual_paint(websocket: WebSocket):
           responses={200: {'content': {'image/png': {}}}}, 
           response_class=Response)
 async def fill_sketch(body: InpaintModel):
-    inpainted = inpainter.process_sketch(body)
+    inpainted = image_processor.inpaint_sketch(body)
     return JSONResponse(content={'inpainted': inpainted})
