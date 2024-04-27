@@ -5,9 +5,11 @@ import asyncio
 
 from WebSocket.connection_manager import ConnectionManager
 from ImageProcessing.image_processing import ImageProcessing
+from ImageProcessing.GAN.inpainter import Inpainter
+from models import InpaintModel
+
 
 app = FastAPI()
-recognizer = ImageProcessing()
 
 origins = [
     'http://localhost:3000', 'http://192.168.0.178:3000'
@@ -23,6 +25,8 @@ app.add_middleware(
 
 
 manager = ConnectionManager()
+inpainter = Inpainter()
+
 
 @app.get('/')
 async def root():
@@ -32,34 +36,26 @@ async def root():
 @app.websocket('/virtual_paint')
 async def virtual_paint(websocket: WebSocket):
     await manager.connect(websocket)
+    recognizer = None
 
     try:
         while True:
+            if not recognizer:
+                recognizer = ImageProcessing()
+            
             data = await websocket.receive_text()
-            if len(data) > 10:
+            try:
                 processed_image = recognizer.process_image(data)
                 await manager.send_personal_message(processed_image, websocket)
-            else:
-                await manager.send_personal_message("Processing image failed", websocket)
+            except:
+                await manager.send_personal_message("Error", websocket)
     except WebSocketDisconnect:
         manager.disconnect(websocket)
 
 
-@app.get('/fill_sketch', 
+@app.post('/fill_sketch', 
           responses={200: {'content': {'image/png': {}}}}, 
           response_class=Response)
-async def fill_sketch():
-    inpainted = recognizer.inpaint_sketch('dogs')
+async def fill_sketch(body: InpaintModel):
+    inpainted = inpainter.process_sketch(body)
     return JSONResponse(content={'inpainted': inpainted})
-
-
-@app.post('/change_color')
-async def change_color(color: str):
-    recognizer.set_color(color)
-    return Response()
-
-
-@app.post('/change_thickness')
-async def change_thickness(thickness: int):
-    recognizer.set_thickness(thickness)
-    return Response()

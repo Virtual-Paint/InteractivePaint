@@ -7,6 +7,8 @@ from torchvision.utils import save_image
 from os import listdir
 
 from .architecture import Generator
+from ImageProcessing.utils import convert_to_bytes, convert_from_bytes
+from models import InpaintModel
 
 
 class Inpainter:
@@ -20,8 +22,15 @@ class Inpainter:
 	def __init__(self):
 		self.models = {}
 		self._load_models()
+  
+	def process_sketch(self, body: InpaintModel) -> str:
+		sketch = convert_from_bytes(body.sketch)
+		model = body.model
+  
+		response = self._inpaint_image(model, sketch)
+		return convert_to_bytes(response)
 	
-	def inpaint_image(self, model: str, image: np.ndarray) -> Image:
+	def _inpaint_image(self, model: str, image: np.ndarray) -> Image:
 		image = np.copy(image)
 		min_x, min_y, max_x, max_y = self._find_bounding_box(image)
 		cropped_image = image[min_y:max_y, min_x:max_x, :]
