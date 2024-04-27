@@ -51,7 +51,8 @@ class Thickness(Enum):
     
 
 def convert_from_bytes(bytes: str) -> Image:
-    base64_data = bytes.split(',')[1]
+    base64_data = bytes.split(',')
+    base64_data = base64_data[1] if len(base64_data) > 1 else base64_data[0]
     binary_data = base64.b64decode(base64_data)
     image_stream = BytesIO(binary_data)
     image = Image.open(image_stream)
