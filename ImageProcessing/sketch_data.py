@@ -40,6 +40,12 @@ class Sketch:
         
         if gesture in self.mapping:
             self.mapping[gesture](hand_landmarks_list=hand_landmarks)
+            
+    def set_settings(self, data: dict) -> None:
+        if 'color' in data:
+            self.color = getattr(Colors, data.get('color'))
+        if 'thickness' in data:
+            self.thickness = getattr(Thickness, data.get('thickness'))
     
     def get_bytes_sketch(self) -> str:
         sketch = Image.fromarray(self.sketch)

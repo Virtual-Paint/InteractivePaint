@@ -43,10 +43,13 @@ async def virtual_paint(websocket: WebSocket):
             if not sketch:
                 sketch = Sketch(image_processor.kalman)
             
-            data = await websocket.receive_text()
+            data = await websocket.receive_json()
             try:
-                processed_image = image_processor.process_image(data, sketch)
-                await manager.send_personal_message(processed_image, websocket)
+                if 'image' in data:
+                    processed_image = image_processor.process_image(data.get('image'), sketch)
+                    await manager.send_personal_message(processed_image, websocket)
+                else:
+                    sketch.set_settings(data)
             except:
                 await manager.send_personal_message("Error", websocket)
     except WebSocketDisconnect:

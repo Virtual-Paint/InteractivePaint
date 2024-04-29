@@ -23,10 +23,12 @@ class ImageProcessing:
         
         if gesture:
             sketch.perform_action(gesture, hand_landmarks)
-        
+
         return {
             'processed_input': self._process_input_image(image, hand_landmarks),
-            'sketch': sketch.get_bytes_sketch()
+            'sketch': sketch.get_bytes_sketch(),
+            'color': sketch.color.name,
+            'thickness': sketch.thickness.name
         }
         
     def inpaint_sketch(self, body: InpaintModel) -> str:
