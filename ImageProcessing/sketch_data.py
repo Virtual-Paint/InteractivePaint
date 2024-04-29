@@ -8,12 +8,12 @@ from ImageProcessing.KalmanFilter.kalman import KalmanFilter
 
 
 class Sketch:
-    def __init__(self) -> None:
+    def __init__(self, kalman: KalmanFilter) -> None:
+        self.kalman = kalman
+        
         self.shape = (480, 640)      #TODO - do env? na podstawie przychodzącego obrazu?
         self.sketch = np.zeros((*self.shape, 3), np.uint8) + 255     #TODO to i shape do drawing_setup ??
-        self.sketch_history = None
-                
-        self.kalman = KalmanFilter(0.1, 1, 1, 1, 0.1, 0.1)        
+        self.sketch_history = None       
         
         self.color = Colors.BLACK
         self.thickness = Thickness.MEDIUM
@@ -40,6 +40,12 @@ class Sketch:
         
         if gesture in self.mapping:
             self.mapping[gesture](hand_landmarks_list=hand_landmarks)
+            
+    def set_settings(self, data: dict) -> None:
+        if 'color' in data:
+            self.color = getattr(Colors, data.get('color'))
+        if 'thickness' in data:
+            self.thickness = getattr(Thickness, data.get('thickness'))
     
     def get_bytes_sketch(self) -> str:
         sketch = Image.fromarray(self.sketch)
