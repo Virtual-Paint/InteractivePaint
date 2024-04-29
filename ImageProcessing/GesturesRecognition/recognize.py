@@ -1,10 +1,7 @@
 import torch
 import numpy as np
-import torchvision.transforms.functional as F
 from PIL import Image
 from torchvision import transforms
-from torchvision.utils import save_image
-from os import listdir
 import cv2
 
 from .architecture import Net

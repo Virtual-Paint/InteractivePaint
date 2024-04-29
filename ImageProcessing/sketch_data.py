@@ -1,161 +1,122 @@
 import numpy as np
 import cv2
 from PIL import Image
-from collections import deque
+from mediapipe.tasks.python.components.containers.landmark import NormalizedLandmark
 
-from .utils import Colors, Thickness, convert_to_bytes
+from .utils import Colors, Thickness, convert_to_bytes, CustomDeque, Coordinates
 from ImageProcessing.KalmanFilter.kalman import KalmanFilter
 
 
 class Sketch:
-    def __init__(self) -> None:
+    def __init__(self, kalman: KalmanFilter) -> None:
+        self.kalman = kalman
+        
         self.shape = (480, 640)      #TODO - do env? na podstawie przychodzącego obrazu?
         self.sketch = np.zeros((*self.shape, 3), np.uint8) + 255     #TODO to i shape do drawing_setup ??
-        self.sketch_history = None
-                
-        self.kalman = KalmanFilter(0.1, 1, 1, 1, 0.1, 0.1)        
+        self.sketch_history = None       
         
         self.color = Colors.BLACK
         self.thickness = Thickness.MEDIUM
-        self.gestures_log = deque(maxlen=4)
-        self.previous_position = None
-        self.previous_position_kalman = None
         
+        self.gestures_log = CustomDeque([None]*4, maxlen=4)
+        self.previous_position = None
         self.prev_pos_for_shapes = None
+        
+        self.mapping = {
+            'ONE': self._draw,
+            'STOP': self._rubber,
+            'PEACE': self._draw_shape,
+            'ROCK': self._draw_shape,
+            'FOUR': self._change_color,
+            'THREE2': self._change_thickness
+        }
         
     def perform_action(self, gesture: str, hand_landmarks: list) -> None:
         self.gestures_log.append(gesture)
         
-        estimation = self._calculate_kalman(hand_landmarks)
-        print(f'Est: {estimation}')
+        self._calculate_kalman(hand_landmarks)
         
-        if gesture == 'ONE':
-            self._draw(hand_landmarks)
-            self._draw_with_kalman(estimation)
-            return
-        elif gesture == 'STOP':
-            self._rubber(hand_landmarks)
-            return
-        self.previous_position = None
-        self.previous_position_kalman = None
+        self._check_initial_conditions()
         
-        # if len(set(list(self.gestures_log)[:3])) == 1 and self.gestures_log[0] == 'PEACE' and self.gestures_log[-1] != 'PEACE':
-        #     self.prev_pos_for_shapes = None
-        # if len(set(list(self.gestures_log)[:3])) == 1 and self.gestures_log[0] == 'ROCK' and self.gestures_log[-1] != 'ROCK':
-        #     self.prev_pos_for_shapes = None
-        if len(set(list(self.gestures_log)[:3])) != 1:
-            self.prev_pos_for_shapes = None
-        
-        if len(set(list(self.gestures_log)[-3:])) == 1 and self.gestures_log[-1] == 'PEACE' and self.gestures_log[0] != 'PEACE':
-            self.sketch_history = np.copy(self.sketch)
-        if len(set(list(self.gestures_log)[-3:])) == 1 and self.gestures_log[-1] == 'PEACE' and self.gestures_log[0] == 'PEACE':
-            self._draw_rectangle(hand_landmarks)
+        if gesture in self.mapping:
+            self.mapping[gesture](hand_landmarks_list=hand_landmarks)
             
-        if len(set(list(self.gestures_log)[-3:])) == 1 and self.gestures_log[-1] == 'ROCK' and self.gestures_log[0] != 'ROCK':
-            self.sketch_history = np.copy(self.sketch)
-        if len(set(list(self.gestures_log)[-3:])) == 1 and self.gestures_log[-1] == 'ROCK' and self.gestures_log[0] == 'ROCK':
-            self._draw_circle(hand_landmarks)
-            
-        if len(set(list(self.gestures_log)[-3:])) != 1 or self.gestures_log[0] == gesture:
-            return
-        if gesture == 'FOUR':
-            self._change_color()
-            print(f'Changed color! New color is {self.color}')
-        elif gesture == 'THREE2':
-            self._change_thickness()
-            print(f'Changed thickness! New thickness is {self.thickness}')
+    def set_settings(self, data: dict) -> None:
+        if 'color' in data:
+            self.color = getattr(Colors, data.get('color'))
+        if 'thickness' in data:
+            self.thickness = getattr(Thickness, data.get('thickness'))
     
     def get_bytes_sketch(self) -> str:
         sketch = Image.fromarray(self.sketch)
         return convert_to_bytes(sketch)
     
-    def _calculate_kalman(self, hand_landmarks_list: list) -> tuple[int, int]:
-        index_finger_tip = hand_landmarks_list[8]
-        denormalized_index_finger_tip = (int(index_finger_tip.x * self.shape[1]), int(index_finger_tip.y * self.shape[0]))
-        #cv2.circle(self.sketch, denormalized_index_finger_tip, 5, (250, 0, 0), 2)
-        center = np.matrix([[denormalized_index_finger_tip[0]],
-                            [denormalized_index_finger_tip[1]]])
+    def _check_initial_conditions(self) -> None:
+        if self.gestures_log.clear_prev_pos():
+            self.previous_position = None
+        if self.gestures_log.clear_shape_prev_pos():
+            self.prev_pos_for_shapes = None
+        if self.gestures_log.perform_action():
+            self.sketch_history = np.copy(self.sketch)
+    
+    def _calculate_kalman(self, hand_landmarks_list: list) -> None:
+        index_pos = self._denormalize_coordinates(hand_landmarks_list[8])
+        center = np.matrix([[index_pos.x],
+                            [index_pos.y]])
         
-        (x, y) = self.kalman.predict()
-        prediction = (int(x), int(y))
-        #cv2.circle(self.sketch, prediction, 10, (0, 200, 0), 2)
+        prediction, self.estimation = self.kalman.calculate(center)
         
-        (x1, y1) = self.kalman.update(center)
-        estimation = (int(x1), int(y1))
-        #cv2.circle(self.sketch, estimation, 10, (0, 200, 200), 2)
-        return estimation
-        
-    def _draw(self, hand_landmarks_list: list) -> None:
-        pointing_finger = hand_landmarks_list[7]
-        
-        denormalized_coordinates = (int(pointing_finger.x * self.shape[1]), int(pointing_finger.y * self.shape[0]))     #TODO to do oddzielnej funkcji
-        print(f'Real: {denormalized_coordinates}')
- 
+    def _draw(self, **kwargs) -> None:
         if self.previous_position:
-            cv2.line(self.sketch, self.previous_position, denormalized_coordinates, self.color.value, self.thickness.value)
-        self.previous_position = denormalized_coordinates
+            cv2.line(self.sketch, self.previous_position, self.estimation, self.color.value, self.thickness.value)
+        self.previous_position = self.estimation
+            
+    def _draw_shape(self, hand_landmarks_list: list, **kwargs) -> None:
+        gesture = self.gestures_log[-1]
+        if not self.gestures_log.draw_shape(gesture):
+            return
         
-    def _draw_with_kalman(self, estimation: tuple) -> None:
-        if self.previous_position_kalman:
-            cv2.line(self.sketch, self.previous_position_kalman, estimation, (0, 255, 0), self.thickness.value)
-        self.previous_position_kalman = estimation
-    
-    def _draw_circle(self, hand_landmarks_list: list) -> None:
-        index_finger_tip = hand_landmarks_list[8]
-        pinky_tip = hand_landmarks_list[12]
+        finger_1, finger_2 = self._denormalize_coordinates(hand_landmarks_list[8], hand_landmarks_list[12])
         
-        denormalized_index_finger_tip = (int(index_finger_tip.x * self.shape[1]), int(index_finger_tip.y * self.shape[0]))
-        denormalized_pinky_tip = (int(pinky_tip.x * self.shape[1]), int(pinky_tip.y * self.shape[0]))
-        
-        coordinates = (int((denormalized_index_finger_tip[0] + denormalized_pinky_tip[0]) / 2),
-                       int((denormalized_index_finger_tip[1] + denormalized_pinky_tip[1]) / 2))
-        
-        if self.prev_pos_for_shapes:
-            radius = int(abs(coordinates[1] - self.prev_pos_for_shapes[1]))
-            self.sketch = np.copy(self.sketch_history)
-            cv2.circle(self.sketch, self.prev_pos_for_shapes, radius, self.color.value, self.thickness.value)
-        else:
-            self.prev_pos_for_shapes = coordinates
-    
-    def _draw_rectangle(self, hand_landmarks_list: list) -> None:
-        index_finger_tip = hand_landmarks_list[8]
-        middle_finger_tip = hand_landmarks_list[12]
-        
-        denormalized_index_finger_tip = (int(index_finger_tip.x * self.shape[1]), int(index_finger_tip.y * self.shape[0]))
-        denormalized_middle_finger_tip = (int(middle_finger_tip.x * self.shape[1]), int(middle_finger_tip.y * self.shape[0]))
-        
-        coordinates = (int((denormalized_index_finger_tip[0] + denormalized_middle_finger_tip[0]) / 2),
-                       int((denormalized_index_finger_tip[1] + denormalized_middle_finger_tip[1]) / 2))
+        coordinates = Coordinates(int((finger_1.x + finger_2.x) / 2),
+                                  int((finger_1.y + finger_2.y) / 2))
         
         if self.prev_pos_for_shapes:
             self.sketch = np.copy(self.sketch_history)
-            cv2.rectangle(self.sketch, self.prev_pos_for_shapes, coordinates, self.color.value, self.thickness.value)
+            if gesture == 'PEACE':
+                cv2.rectangle(self.sketch, tuple(self.prev_pos_for_shapes), tuple(coordinates), self.color.value, self.thickness.value)
+            elif gesture == 'ROCK':
+                radius = int(abs(coordinates.y - self.prev_pos_for_shapes.y))
+                cv2.circle(self.sketch, tuple(self.prev_pos_for_shapes), radius, self.color.value, self.thickness.value)
         else:
             self.prev_pos_for_shapes = coordinates
 
-    def _rubber(self, hand_landmarks_list: list) -> None:
-        wrist = hand_landmarks_list[0]
-        index_finger_mcp = hand_landmarks_list[5]
-        pinky_mcp = hand_landmarks_list[17]
+    def _rubber(self, hand_landmarks_list: list, **kwargs) -> None:
+        wrist_pos, index_pos, pinky_pos = self._denormalize_coordinates(hand_landmarks_list[0], 
+                                                                        hand_landmarks_list[5], 
+                                                                        hand_landmarks_list[17])
 
-        denormalized_wrist = (int(wrist.x * self.shape[1]), int(wrist.y * self.shape[0]))
-        denormalized_index_finger_mcp = (int(index_finger_mcp.x * self.shape[1]), int(index_finger_mcp.y * self.shape[0]))
-        denormalized_pinky_mcp = (int(pinky_mcp.x * self.shape[1]), int(pinky_mcp.y * self.shape[0]))
-
-        x_center = int((denormalized_wrist[0] + denormalized_index_finger_mcp[0] + denormalized_pinky_mcp[0]) / 3)
-        y_center = int((denormalized_wrist[1] + denormalized_index_finger_mcp[1] + denormalized_pinky_mcp[1]) / 3)
-
-        radius = 10
-        color = (255, 255, 255)
-        thickness = -1
-        cv2.circle(self.sketch, (x_center, y_center), radius, color, thickness)
+        coordinates = Coordinates(int((wrist_pos.x + index_pos.x + pinky_pos.x) / 3),
+                                  int((wrist_pos.y + index_pos.y + pinky_pos.y) / 3))
         
-    def _change_color(self) -> None:
-        colors = list(Colors)
-        idx = colors.index(self.color) + 1
-        self.color = colors[idx] if idx < len(Colors) else colors[0]
+        cv2.circle(self.sketch, tuple(coordinates), 10, (255, 255, 255), -1)
         
-    def _change_thickness(self) -> None:
-        thicnesses = list(Thickness)
-        idx = thicnesses.index(self.thickness) + 1
-        self.thickness = thicnesses[idx] if idx < len(Thickness) else thicnesses[0]
+    def _change_color(self, **kwargs) -> None:
+        if self.gestures_log.perform_action():
+            colors = list(Colors)
+            idx = colors.index(self.color) + 1
+            self.color = colors[idx] if idx < len(Colors) else colors[0]
+            print(f'Changed color! New color is {self.color}')
+        
+    def _change_thickness(self, **kwargs) -> None:
+        if self.gestures_log.perform_action():
+            thicnesses = list(Thickness)
+            idx = thicnesses.index(self.thickness) + 1
+            self.thickness = thicnesses[idx] if idx < len(Thickness) else thicnesses[0]
+            print(f'Changed thickness! New thickness is {self.thickness}')
+        
+    def _denormalize_coordinates(self, *args: NormalizedLandmark) -> tuple[Coordinates, ...]:
+        result = [Coordinates(int(arg.x * self.shape[1]), int(arg.y * self.shape[0])) for arg in args]
+        if len(result) == 1:
+            return result[0]
+        return tuple(result)
