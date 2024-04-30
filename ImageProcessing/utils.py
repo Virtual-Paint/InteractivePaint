@@ -59,7 +59,6 @@ def convert_from_bytes(bytes: str) -> Image:
     return image
     
 def convert_to_bytes(image: Image) -> str:
-    image = image.transpose(Image.FLIP_LEFT_RIGHT)
     buffer = BytesIO()
     image.save(buffer, format="JPEG")
     base64_image = f"{base64.b64encode(buffer.getvalue()).decode('utf-8')}"

@@ -49,6 +49,7 @@ class Sketch:
     
     def get_bytes_sketch(self) -> str:
         sketch = Image.fromarray(self.sketch)
+        sketch = sketch.transpose(Image.FLIP_LEFT_RIGHT)
         return convert_to_bytes(sketch)
     
     def _check_initial_conditions(self) -> None:

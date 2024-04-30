@@ -37,4 +37,5 @@ class ImageProcessing:
     @staticmethod
     def _process_input_image(image: Image, hand_landmarks: list) -> str:
         processed_input = draw_landmarks_on_image(image, hand_landmarks)
+        processed_input = processed_input.transpose(Image.FLIP_LEFT_RIGHT)
         return convert_to_bytes(processed_input)
